@@ -14,5 +14,9 @@ tk_test01.py
 traceback.log
 *temp/
 *torrent_downloads/
+*cover_downloads/
+result.html
+result2.html
+result.txt
 content.html
 putty.log

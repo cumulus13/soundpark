@@ -1,14 +1,16 @@
+#!c:/SDK/Anaconda2/python.exe
 import sys
 if sys.version_info.major == 3:
 	from tkinter import *
 else:
 	from Tkinter import * 
-from PIL import Image, ImageTk, ImageFilter, ImageEnhance
+from PIL import Image, ImageTk, ImageFilter# , ImageEnhance
 import os
 from pydebugger.debug import debug
+import glob
 
 class Application(Frame):
-	def __init__(self, master=None, image1=None, image2=None, image3=None, title=None):
+	def __init__(self, master, title="ScreenShot Viewer", images_dir = "temp"):
 		Frame.__init__(self, master)
 		self.master = master
 		if not title:
@@ -19,64 +21,31 @@ class Application(Frame):
 			master.iconbitmap(os.path.join(os.path.dirname(__file__), 'favicon.png'))
 		else:
 			master.iconbitmap(os.path.join(os.path.dirname(__file__), 'nofavicon.ico'))
-		self.image1 = image1
-		self.image2 = image2
-		self.image3 = image3
-		self.size1 = (0, 0)
-		self.size2 = (0, 0)
-		self.size3 = (0, 0)
+		self.image = glob.glob(images_dir + "\*")
+		debug(self_image = self.image)
+		self.size = (0, 0)
 		
 		master.wm_title(title)
 		self.pack()
 		# self.createWidgets(image1)
 		master.resizable(0,0)
-		if image1:
-			if os.path.isfile(image1):
-				self.showImage1()
-				if image2:
-					if os.path.isfile(image2):
-						self.showImage2()
-					self.showNextButton()
+		if self.image:
+			self.showImage1()
+			self.showNextButton()
 		else:
 			self.showNoImage(master)
-		# if name:
-		# 	self.label0 = Label(self, text=name, relief=SUNKEN, height=10, font='Consolas 10 bold')
-		# 	self.label0.grid(row=1, column=0, padx=5, pady=5, rowspan=150)
-
+		
+		self.n = 0
 		self.binder(master)
-		# print "self.size1 =", self.size1
-		# print "self.size2 =", self.size2
-		# print "self.size3 =", self.size3
-		# if not image3:
-		# else:
+		
 		self.first_center()
 		self.center()
 
 	def first_center(self, final_width=None, final_height=None):
-		all_size_width = [self.size1[0], self.size2[0], self.size3[0]]
-		all_size_height = [self.size1[1], self.size2[1], self.size3[1]]
-		if not self.image2:
-			self.master.geometry("%sx%s+30+30"%(str(max(all_size_width)), str(max(all_size_width))))
-		else:
-			if not final_width:
-				if self.image3:
-					final_width = sum(all_size_width) + 70
-				else:
-					final_width = sum(all_size_width) + 40
-			if not final_height:
-				if self.image3:
-					final_height = max(all_size_height[:-1])
-				else:
-					final_height = max(all_size_height) + 30
-			# else:
-			# 	final_width = sum(all_size_width)
-			# 	final_height = max(all_size_height)
-			self.master.geometry("%sx%s+30+30"%(
-				str(final_width), 
-				str(final_height)
-			  )
-			)
-
+		all_size_width = [self.size[0], 0, 0]
+		all_size_height = [self.size[1], 0, 0]
+		self.master.geometry("%sx%s+30+30"%(str(max(all_size_width)), str(max(all_size_height))))
+		
 	def center(self):
 		"""
 		centers a tkinter window
@@ -99,10 +68,8 @@ class Application(Frame):
 		sys.exit()
 
 	def binder(self, master):
-		if self.image2:
-			if self.image3:
-				if os.path.isfile(self.image3):
-					master.bind("n", self.showImage3)
+		master.bind("n", self.run)
+		master.bind("p", self.previous)
 		master.bind("q", self.quitX)
 
 	def showNoImage(self, master):
@@ -111,43 +78,69 @@ class Application(Frame):
 		self.label1.grid(row=0, column=0, padx=5, pady=5, rowspan=10)
 
 	def showImage1(self, event=None):
-		if self.image1:
-			self.img = Image.open(self.image1)
-			self.size1 = self.img.size
-			# print "self.size1 0 =", self.size1
-			self.photo1 = ImageTk.PhotoImage(self.img.convert("RGB"))
-			self.label1 = Label(self, image=self.photo1)
-			self.label1.grid(row=0, column=0, padx=5, pady=5, rowspan=10)
+		img = Image.open(self.image[0])
+		self.size = img.size
+		debug(setsize = self.setSize(img))
+		all_size_width = [self.setSize(img)[0], 0, 0]
+		all_size_height = [self.setSize(img)[1], 0, 0]
+		final_width = sum(all_size_width[:-1]) + 70
+		final_height = sum(all_size_height[1:]) + 40
+		self.first_center(final_width, final_height)
+		
+		self.photo2 = ImageTk.PhotoImage(img.convert("RGB"))
+		self.label2 = Label(self, image=self.photo2)
+		self.label2.grid(row=0, column=0, padx=5, pady=5, rowspan=10)
 
-	def showImage2(self, event=None):
-		if self.image2:
-			img = Image.open(self.image2)
-			self.size2 = img.size
-			# print "self.size2 0 =", self.size2
-			self.photo2 = ImageTk.PhotoImage(img.convert("RGB"))
-			self.label2 = Label(self, image=self.photo2)
-			self.label2.grid(row=0, column=1, padx=5, pady=5, rowspan=10)
-
-	def showImage3(self, event=None):
-		self.label2.grid(rowspan=1)
-		if self.image3:
-			img = Image.open(self.image3)
-			self.size3 = img.size
-			# print "self.size3 0 =", self.size3
-			all_size_width = [self.size1[0], self.size2[0], self.size3[0]]
-			all_size_height = [self.size1[1], self.size2[1], self.size3[1]]
-			final_width = sum(all_size_width[:-1]) + 70
-			final_height = sum(all_size_height[1:]) + 40
-			self.first_center(final_width, final_height)
-			self.photo3 = ImageTk.PhotoImage(img.convert("RGB"))
-			self.label3 = Label(self, image=self.photo3)
-			self.label3.grid(row=1, column=1, padx=5, pady=5, rowspan=10)
+	def run(self, event = None):
+		self.showImage()
+		self.n += 1
+		
+	def previous(self, event = None):
+		self.n = self.n - 2
+		self.showImage()
+		self.n += 1
+		
+	def setSize(self, im):
+		screen_width = self.master.winfo_screenwidth()
+		screen_height = self.master.winfo_screenheight()
+		if screen_width < im.size[0]:
+			x = screen_width / 1.1
+			y = screen_height / 1.1
+		else:
+			x = im.size[0] /  1.03
+			y = im.size[1] / 1.03
+	
+		im.thumbnail((x, y), Image.ANTIALIAS)
+		return x, y
+		
+	def showImage(self):
+		try:
+			images = self.image[self.n]
+			debug(images = images)
+			if images:
+				img = Image.open(images)
+				self.size = img.size
+				debug(self_size = self.size)
+				all_size_width = [self.setSize(img)[0], 0, 0]
+				all_size_height = [self.setSize(img)[1], 0, 0]
+				final_width = sum(all_size_width) + 70
+				final_height = sum(all_size_height) + 40
+				debug(final_width = final_width)
+				debug(final_height = final_height)
+				self.first_center(final_width, final_height)
+				self.photo2 = ImageTk.PhotoImage(img.convert("RGB"))
+				self.label2 = Label(self, image=self.photo2)
+				self.label2.grid(rowspan=1)		
+				self.label2.grid(row=0, column=0, padx=5, pady=5, rowspan=10)
+			else:
+				self.showNoImage(self.master)
+		except:
+			self.showNoImage(self.master)
 		self.center()
 
 	def showNextButton(self):
-		if self.image2 and self.image3:
-			button5 = Button(self, text="Next", command=self.showImage3)
-			button5.grid(row=4, column= 2, sticky = N)
+		button5 = Button(self, text="Next", command=self.run)
+		button5.grid(row=4, column= 2, sticky = N)
 
 	def sharpen(self):
 		img2 = self.img.filter(ImageFilter.SHARPEN)
@@ -158,15 +151,16 @@ class Application(Frame):
 	def showOther(self, event=None):
 		self.label2.grid(rowspan=1)
 		img = Image.open(self.image2)
-		self.photo3 = ImageTk.PhotoImage(img)
-		self.label3 = Label(self, image=self.photo3)
-		self.label3.grid(row=1, column=1, padx=5, pady=5, rowspan=10)
+		self.photo2 = ImageTk.PhotoImage(img)
+		self.label2 = Label(self, image=self.photo3)
+		self.label2.grid(row=0, column=0, padx=5, pady=5, rowspan=10)
 		
 def center(toplevel):
 	"""
-    centers a tkinter window
-    :param win: the root or Toplevel window to center
-    """
+	centers a tkinter window
+	:param win: the root or Toplevel window to center
+	"""
+
 	toplevel.update_idletasks()
 	width = toplevel.winfo_width()
 	frm_width = toplevel.winfo_rootx() - toplevel.winfo_x()
@@ -179,24 +173,13 @@ def center(toplevel):
 	toplevel.geometry('{}x{}+{}+{}'.format(width, height, x, y))
 	toplevel.deiconify()
 
-def showImages(title="", image1=None, image2=None, image3=None):
-	debug(image1 = image1)
-	debug(image2 = image2)
-	debug(image3 = image2)
-	#print ("image 1 =", image1)
-	#print ("image 2 =", image2)
-	#print ("image 3 =", image3)
+def main(images_dir):
 	root = Tk()
 	#root = Toplevel(root1)
 	#root.eval('tk::PlaceWindow %s center' % root.winfo_pathname(root.winfo_id()))
 	center(root)
-	c = Application(root, image1, image2, image3, title)
+	c = Application(root, images_dir = images_dir)
 	c.mainloop()
 
 if __name__ == '__main__':
-	# import sys
-	# root = Tk()
-	# root.eval('tk::PlaceWindow %s center' % root.winfo_pathname(root.winfo_id()))
-	# c = Application(root, sys.argv[1], sys.argv[2], sys.argv[3], "TEST Image V")
-	# c.mainloop()
-	showImages(*sys.argv[1:])
+	main(sys.argv[1])

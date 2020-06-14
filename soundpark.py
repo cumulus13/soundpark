@@ -2,6 +2,12 @@
 from __future__ import print_function
 import traceback
 import os, sys
+from safeprint import print as sprint
+#  import io
+#  sys.stdout = io.TextIOWrapper(sys.stdout.detach(), encoding = 'utf-8')
+#  sys.stderr = io.TextIOWrapper(sys.stderr.detach(), encoding = 'utf-8')
+os.environ.update({'PYTHONIOENCODING':'UTF-8'})
+sys.excepthook = traceback.format_exc
 import argparse
 from bs4 import BeautifulSoup as bs
 from pydebugger.debug import debug
@@ -22,31 +28,80 @@ if sys.version_info.major == 3:
     raw_input = input
 else:
     from urlparse import urlparse
-    from urllib import unquote
+    from urllib import unquote, quote
 from getpass import getpass
 #import random
 import re
 from pprint import pprint
 import inspect
+import argparse
 
 
 class soundpark(object):
-    def __init__(self, configname = 'soundpark.ini', username = None, password = None, download_path = os.getcwd(), login = True):
+    def __init__(self, configname = 'soundpark.ini', username = None, password = None, download_path = os.getcwd(), login = True, bar=None):
         super(soundpark, self)
         self.configname = os.path.join(os.path.dirname(__file__), configname)
         self.conf = configset(self.configname)
         self.sess = cfscrape.Session()
+        self.headers = {'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.87 Safari/537.36'}
+        self.sess.headers.update(self.headers)
         #self.sess = requests.session()
         self.url = 'https://sound-park.world'
         label = make_colors('[Connection]', 'white', 'blue')
         self.prefix = '{variables.task} >> {variables.subtask}'
         self.variables =  {'task': '--', 'subtask': '--'}
         self.max_value = 10
-        self.bar = progressbar.ProgressBar(max_value = self.max_value, prefix = self.prefix, variables = self.variables)
+        self.bar = bar
+        if not self.bar:
+            self.bar = progressbar.ProgressBar(max_value = self.max_value, prefix = self.prefix, variables = self.variables)
         self.username = username
         self.password = password
         if login:
             self.login()
+            
+    def seedr(self, torrent):
+        try:
+            from seedr2.seedr import seedr
+        except:
+            seedr2_module = self.conf.get_config('seedr', 'path')
+            if not seedr2_module:
+                seedr2_module = raw_input('Please input seedr module path: ')
+                if not os.path.isdir(seedr2_module):
+                    return False
+                else:
+                    self.conf.write_config('seedr', 'path', seedr2_module)
+            sys.path.insert(0, seedr2_module)
+            debug(sys_path = sys.path)
+            #self.pause()
+            try:
+                from seedr2.seedr import seedr
+            except:
+                traceback.format_exc(detach=False)
+                from seedr import seedr
+                    
+        st = seedr()
+        st.add(torrent)
+        cprocess = 'start cmd /c "seedr2 -s -sd"'
+        os.system(cprocess)
+
+    def del_evenReadonly(self, action, name, exc):
+        import stat
+        os.chmod(name, stat.S_IWRITE)
+        os.remove(name)
+            
+    def show_image(self, url, cover_dir):
+        try:
+            from . import download
+        except:
+            import download
+        download.download_img(url, cover_dir)
+        try:
+            import tkimage
+        except:
+            from . import tkimage
+        from multiprocessing import Process
+        tx = Process(target=tkimage.main, args=(cover_dir, ))
+        tx.start()
         
     def progress(self, value, task, subtask, tcf='lw', tcg='bl', stcf = 'b', stcg = 'lg', tattr = [], stattr = [], max_value=None):
         task = make_colors(task, tcf, tcg, attrs=tattr)
@@ -281,40 +336,47 @@ class soundpark(object):
             if not url:
                 url = self.url
             while 1:
-                self.progress(5, "[GET-Genres]", "start")
+                self.progress(5, "[GET-All-Genres]", "start")
                 try:
                     a = self.sess.get(url, timeout = timeout)
-                    self.progress(10, "[GET-Genres]", "finish")
+                    self.progress(10, "[GET-All-Genres]", "finish")
                     bs_object = bs(a.content, 'lxml')
                     break
                 except:
-                    self.bar.show(t)
+                    self.progress(t, "[Get-All-Genres]", "try !")
                     t += 1
                     if t == 10:
                         error_get = True
                         break                        
             
         if error_get:
-            self.progress(self.bar.max_value, "[Get-Genres]", "Timeout Expected !", stcf="lw", stcg="lr", stattr=['blink'])
+            self.progress(self.bar.max_value, "[Get-All-Genres]", "Timeout Expected !", stcf="lw", stcg="lr", stattr=['blink'])
             sys.exit(make_colors("Timeout Expected !", 'lightwhite', 'lightred', ['blink']))
         div_bottom = bs_object.find('div', {'id': 'bottom',})# .find('nav', {'id': 'genre-block'})
         debug(div_bottom = div_bottom)
-        genre_titles = div_bottom.find_all('a', {'class': 'gl1',})
-        debug(genre_titles = genre_titles)
+        #genre_titles = div_bottom.find_all('a', {'class': re.compile('gl'),})
+        #debug(genre_titles = genre_titles, debug = True)
         genre_lists = div_bottom.find_all('ul', {'id': 'genre_list',})
-        for i in genre_titles:
-            data.update({n: {'title': i.text, 'data': {},}})
-            all_li_genre_list = genre_lists[genre_titles.index(i)].find_all('li')
-            m = 1
-            for x in  all_li_genre_list:
-                a_link = x.find('a')
-                link = a_link.get('href')
-                title = a_link.text
-                a_data = {title: link,}
-                data.get(n).get('data').update({m: a_data,})
-                m += 1
-            n += 1
+        debug(genre_lists = genre_lists)
+        for x in genre_lists:
+            genre_titles = x.find_all('a', {'class': re.compile('gl'),})
+            debug(genre_titles = genre_titles)
+            #self.pause()
+            for i in genre_titles:
+                #data.update({n: {'title': i.text, 'data': {},}})
+                data.update({n: {'title': i.text.lower(), 'link': i.get('href'),}})
+                #all_li_genre_list = genre_lists[genre_titles.index(i)].find_all('li')
+                #  m = 1
+                #  for x in  all_li_genre_list:
+                    #  a_link = x.find('a')
+                    #  link = a_link.get('href')
+                    #  title = a_link.text
+                    #  a_data = {title: link,}
+                    #  data.get(n).get('data').update({m: a_data,})
+                    #  m += 1
+                n += 1
         debug(data = data)
+        return data
         
     def set_colored(self, background):
         foreground = 'white'
@@ -328,11 +390,12 @@ class soundpark(object):
         return foreground, background
     
     def details(self, url, sess = None, timeout = 10, print_list = True, max_try=100):
+        clipboard.copy(url)
         if sess:
             self.sess = sess
         nt = 1
         debug(url = url)
-        self.pause()
+        #self.pause()
         while 1:
             self.progress(50, "[Get-Details]", "start", max_value=max_try)
             try:
@@ -353,25 +416,34 @@ class soundpark(object):
                     
                 
         b = bs(a.content, 'lxml')
+        info_torrents = {}
         div_idetails = b.find('div', {'class': 'idetails',})
+        cover = b.find('img', {'class':'linked-image'}).get('src')
+        info_torrents.update({'cover':cover})
+        debug(cover = cover)
         a_link_uploader = div_idetails.find('a')
         debug(a_link_uploader = a_link_uploader)
         uploader = a_link_uploader.text
         debug(uploader = uploader)
+        info_torrents.update({'uploader':uploader})
         link_uploader = a_link_uploader.get('href')
         debug(link_uploader = link_uploader)
+        info_torrents.update({'link_uploader':link_uploader})
         idetails = re.split(":|Date|Remove from favorites|\!|Add to favorites|\n|Added|  |Views| : ", div_idetails.text)
         debug(idetails = idetails)
         idetails = list(filter(None, idetails))
         debug(idetails = idetails)
         added = idetails[0].strip()
         debug(added = added)
+        info_torrents.update({'added':added})
         views = idetails[2].strip()
         debug(views = views)
+        info_torrents.update({'views':views})
         div_details_list = b.find('ul', {'class': 'details-list',})
         debug(div_details_list = div_details_list)
         link_download = div_details_list.find('a', {'class': 'dnl',}).get('href')
         debug(link_download = link_download)
+        info_torrents.update({'link_download':link_download})
         download_content = self.sess.get(self.url + link_download)
         #print("download_content:")
         #print(download_content.content)
@@ -435,7 +507,7 @@ class soundpark(object):
         n = 1
         description = b.find('div', {'class': 'descr',})
         debug(description = description)
-        self.pause()
+        #self.pause()
         data_desc = ''
         if description:
             data_desc = description.text
@@ -448,7 +520,7 @@ class soundpark(object):
             debug(all_cd = all_cd)
             debug(all_cd_title = all_cd_title)
             
-            self.pause()
+            #self.pause()
             all_tracks = None
             pre_info_add = []
             info_add = []
@@ -514,16 +586,16 @@ class soundpark(object):
                 self.pause()
             elif description.find('br') and not all_cd:
                 debug("description br")
-                self.pause()
+                #self.pause()
                 tracks =  str(re.sub('(\s)(\d+.)', r'\n\2', data_desc))
                 debug(tracks = tracks)
-                self.pause()
+                #self.pause()
             else:
                 debug("description else")
-                self.pause()
+                #self.pause()
                 all_track_percd = description.find_all(['div', 'span'], {'class':'bodyfolder'})
                 debug(all_track_percd = all_track_percd)
-                self.pause()
+                #self.pause()
                 if all_track_percd:
                     debug(all_track_percd_text = all_track_percd[0].text)
                 
@@ -573,15 +645,18 @@ class soundpark(object):
             if info_add:
                 print(make_colors("\n".join(info_add), 'lm'))
                     
-        data_video = b.find('iframe').get('src')
-        debug(data_video = data_video)
-        if print_list:
-            if data_video:
-                print(make_colors('VIDEO:', 'black', 'green') + " " + make_colors(data_video, 'ly'))
+        data_video = b.find('iframe')
+        if data_video:
+            data_video = data_video.get('src')
+            debug(data_video = data_video)
+            if print_list:
+                if data_video:
+                    print(make_colors('VIDEO:', 'black', 'green') + " " + make_colors(data_video, 'ly'))
         
-        return data_artist, tracks, data_video, link_download, download_content.content
+        return data_artist, tracks, data_video, link_download, download_content.content, info_torrents
             
     def get_genre(self, url, uploaded_for = None, sort_by = None, on_page = None, sorting = None, active_only = None, lossly_only = None, sess = None, data = None, page = None, rtype = 'get', timeout = 5, login = False, max_try=100):
+        debug(url = url)
         data_sort_by = ['date', 'title', 'pop', 'rating']
         if sess:
             self.sess = sess
@@ -615,8 +690,9 @@ class soundpark(object):
             elif isinstance(lossly_only, int) and str(lossly_only).strip() == '1':
                 params.update({'lossless': '1', 'filter': '1',})
         
-        if uploaded_for or sort_by or on_page or sorting or active_only or lossly_only or login:
+        if login:
             self.login()
+        if uploaded_for or sort_by or on_page or sorting or active_only or lossly_only:
             rtype = 'post'
         
         while 1:
@@ -626,7 +702,7 @@ class soundpark(object):
                     a = self.sess.post(url, timeout = timeout, data = params)
                 else:
                     a = self.sess.get(url, timeout = timeout, params = params)
-                self.progress(100, "[Get-Genre]", "finish" , max_value=max_try)
+                self.progress(1, "[Get-Genre]", "processing" , max_value=max_try)
                 self.bar.max_value = self.max_value
                 break
             except:
@@ -639,22 +715,37 @@ class soundpark(object):
                     nt += 1                
                     self.progress(nt, "[Get-Genre]", "re-connecting", stcf="lw", stcg="lr", stattr=['blink'], max_value=max_try)
                 
-        b = bs(a.content, 'lxml')
-        all_table = b.find_all('table', {'class': 'browse_albums',})
+        b = bs(a.text, 'lxml')
+        #  with open(os.path.join(os.path.dirname(__file__), 'result.html'), 'wb') as f:
+            #  f.write(str(a.content))
+        #  with open(os.path.join(os.path.dirname(__file__), 'result2.html'), 'wb') as f:
+            #  f.write(str(b))
+        #debug(b = b)
+        left_column = b.find('div', {'id':'columns'})
+        debug(left_column = left_column)
+        all_table = left_column.find_all('table', {'class': 'browse_albums',})
+        debug(all_table = all_table)
         if not all_table:
             return {}
         if not data:
             data = {}
         n = 1
+        self.bar.max_value = len(all_table)
         for i in all_table:
+            data.update({n:{}})
+            if n > len(all_table):
+                n = len(all_table)
+            self.progress(n, "[Get-Genre]", "processing")
             all_tr = i.find_all('tr')
             #for x in all_tr:
             all_td_0 = all_tr[0].find_all('td')
             data_title = all_td_0[0].find_all('a')
             title = data_title[0].text
             debug(title = title)
+            #data.get(n).update({'title':title})
             link = data_title[0].get('href')
             debug(link = link)
+            #data.get(n).update({'link':link})
             ng = 1
             genres = {}
             data_genres = data_title[1:]
@@ -666,10 +757,12 @@ class soundpark(object):
                     },
                 })
             debug(genres = genres)
+            #data.get(n).update({'genres':genres})
             data_idetails = all_td_0[1]
-            debug(data_idetails = data_idetails, debug = True)
+            debug(data_idetails = data_idetails)
             date = data_idetails.find('span').text
             debug(date = date)
+            #data.get(n).update({'date':date})
             data_rating = data_idetails.find('div', {'itemprop': 'aggregateRating',}).find_all('span')
             debug(data_rating = data_rating)
             rating = ''
@@ -680,70 +773,114 @@ class soundpark(object):
             else:
                 rating = data_rating[0].text
             debug(rating = rating)
+            #data.get(n).update({'rating':rating})
             debug(votes = votes)
+            data.update({n: {'votes':votes}})
             link_download = data_idetails.find('a', {'class': 'dnl',}).get('href')
             debug(link_download = link_download)
+            #data.get(n).update({'download':link_download})
             all_text = data_idetails.text
-            debug(all_text = all_text, debug = True)
+            debug(all_text = all_text)
             comments = re.findall("Comments:(.*?)Views", all_text)
             debug(comments = comments)
+            #data.get(n).update({'comments':comments[0].strip()})
             views = re.findall("Views:(.*?)DOWNLOAD", all_text)
             debug(views = views)
-            
+            #data.get(n).update({'views':views[0].split("\t")[0].strip()})
             thumb = all_tr[1].find('a').find('img').get('src')
             debug(thumb = thumb)
+            #data.get(n).update({'thumb':thumb})
             data_artist = all_tr[1].find('td', {'class': 'descr',})
             span_artist = data_artist.find('span', {'itemprop': 'byArtist',})
             artist = span_artist.find('span', {'itemprop': 'name',}).text
             debug(artist = artist)
+            #data.get(n).update({'artist':artist})
             album = span_artist.find('span', {'itemprop': 'album',}).text
             debug(album = album)
+            #data.get(n).update({'album':album})
             all_text = data_artist.text
-            debug(all_text = all_text, debug = True)
-            release = re.findall("Release year / Date:(.*?)Country", all_text)
+            debug(all_text = all_text)
+            #release = re.findall("Release year / Date:(.*?)Country", all_text)
+            release = re.findall("Release year / Date:(.*?\d{4})", all_text)
+            if not release:
+                release = [""]
             debug(release = release)
+            #data.get(n).update({'release':release[0].strip()})
             country = re.findall("Country:(.*?)Style", all_text)
+            if not country:
+                country = [""]
             debug(country = country)
+            #data.get(n).update({'country':country[0].strip()})
             style = re.findall("Style:(.*?)Label", all_text)
+            if not style:
+                style = re.findall("Style:(.*?)Site", all_text)
+            if not style:
+                style = re.findall("Style:(.*?)Duration", all_text)
             debug(style = style)
+            #data.get(n).update({'style':style[0].strip()})
             label = re.findall("Label:(.*?)Duration", all_text)
             debug(label = label)
+            if not label:
+                label = re.findall("Label:(.*?)File Format:", all_text)
+                debug(label = label)
+            if not label:
+                label = [""]
+                #data.get(n).update({'label':label[0].strip()})
             duration = re.findall("Duration:(.*?)File Format", all_text)
             debug(duration = duration)
+            if not duration:
+                duration = [""]
+            #data.get(n).update({'duration':duration[0].strip()})
             file_format = re.findall("File Format:(.*?)Quality", all_text)
             debug(file_format = file_format)
+            #data.get(n).update({'format':file_format[0].strip()})
             quality = re.findall("Quality:(.*?)$", all_text)
             debug(quality = quality)
-            
-            data.update({
-                n: {
-                    'title': title,
-                    'link': link,
-                    'genres': genres,
-                    'date': date,
-                    'rating': rating,
-                    'votes': votes,
-                    'download': link_download,
-                    'comments': comments[0].strip(),
-                    'views': views[0].split("\t")[0].strip(),
-                    'thumb': thumb,
-                    'artist': artist,
-                    'album': album,
-                    'release': release[0].strip(),
-                    'country': country[0].strip(),
-                    'style': style[0].strip(),
-                    'label': label[0].strip(),
-                    'duration': duration[0].strip(),
-                    'format': file_format[0].strip(),
-                    'quality': quality[0].strip(),
-                },
-            })
-            n += 1
-        pprint(data)
-        debug(rtype = rtype, debug = True)
-        debug(params = params, debug = True)        
+            #data.get(n).update({'quality':quality[0].strip()})
+            #site = [""]
+            site = re.findall("Site:(.*?)Duration", all_text)
+            if not site:
+                site = [""]
+                #data.get(n).update({'site':site[0].strip()})
+            #n += 1
+            try:
+                data.update({
+                    n: {
+                        'title': title,
+                        'link': link,
+                        'genres': genres,
+                        'date': date,
+                        'rating': rating,
+                        'votes': votes,
+                        'download': link_download,
+                        'comments': comments[0].strip(),
+                        'views': views[0].split("\t")[0].strip(),
+                        'thumb': thumb,
+                        'artist': artist,
+                        'album': album,
+                        'release': release[0].strip(),
+                        'country': country[0].strip(),
+                        'style': style[0].strip(),
+                        'label': label[0].strip(),
+                        'duration': duration[0].strip(),
+                        'format': file_format[0].strip(),
+                        'quality': quality[0].strip(),
+                        'site': site[0].strip(),
+                    },
+                })
+                n += 1
+            except:
+                debug(all_text = all_text, debug = True)
+                traceback.format_exc()
+                self.pause()
+        #self.pause()
+        #pprint(data)
+        debug(rtype = rtype)
+        debug(params = params)
+        self.progress(len(all_table), "[Get-Genre]", "finish")
+        print("\n")
         return data
-                    
+
     def search(self, query, sess = None, timeout = 5, max_try=30):
         if sess:
             self.sess = sess
@@ -777,7 +914,8 @@ class soundpark(object):
             if result:
                 result = result[0].strip()
         debug(result = result)
-        if not int(result) > 0:
+        #self.pause()
+        if not result:
             return {}
         else:
             all_div = b.find('div', {'id': 'content',}).find_all('div', {'class': 'div-rellist',})
@@ -817,43 +955,83 @@ class soundpark(object):
         #pprint(data)
         return data
         
-    def print_nav(self):
-        note1 = "Select number for details" + " (" + make_colors("[n]t = set for last numbers day", 'white', 'blue') + ", " + make_colors("desc|ast = sort by descending or ascending", 'white', 'magenta') + ", " + make_colors("sd = sort by date", 'white', 'green') + ", " + make_colors("sn = sort by name", 'black', 'cyan') + ", " + make_colors("sp = sort by popularity", 'red', 'white') + ", " + make_colors("sr = sort by ratting", 'black', 'white') + ", " + make_colors("sa = show for active torrent only", 'black', 'yellow') + ", " +  make_colors("sl = show lossly only (default lossly and mp3)", 'white', 'blue') + ", " + make_colors("c = show all genres or type 'c=[genre_name]'", 'white', 'blue') + ", " + make_colors("r = reset all setting", 'white', 'red') + ", " + make_colors("w = refresh", 'green') + ", " + make_colors("x|q = exit/quit", 'white', 'red') + " " + make_colors("all of set can type on one line", 'cyan') + ": "
+    def print_nav(self, note=1):
+        if note == 2:
+            note1 = make_colors("[e[x]it or [q]uit for exit]: ", "lightwhite", "red") + ", " + make_colors("Download it with seedr [y]: ", 'white', 'blue')
+        else:
+            note1 = "Select number for details" + " (" + make_colors("[n]t = set for last numbers day", 'white', 'blue') + ", " + make_colors("desc|ast = sort by descending or ascending", 'white', 'magenta') + ", " + make_colors("sd = sort by date", 'white', 'green') + ", " + make_colors("sn = sort by name", 'black', 'cyan') + ", " + make_colors("sp = sort by popularity", 'red', 'white') + ", " + make_colors("sr = sort by ratting", 'black', 'white') + ", " + make_colors("sa = show for active torrent only", 'black', 'yellow') + ", " +  make_colors("sl = show lossly only (default lossly and mp3)", 'white', 'blue') + ", " + make_colors("c = show by genre or type 'c=[genre_name]'", 'white', 'blue') + ", " + make_colors("lg = show all genres", 'black', 'yellow') + ", " + make_colors("r = reset all setting", 'white', 'red') + ", " + make_colors("w = refresh", 'green') + ", " + make_colors("x|q = exit/quit", 'white', 'red') + " " + make_colors("all of set can type on one line", 'cyan') + ": "
         q = raw_input(note1)
         return q
     
-    def navigator(self, login = True, data = None, new_music = None, all_genres = None, print_list = True, uploaded_for = '360', sort_by = 'date', on_page = '40', sorting = 'desc', active_only = None, lossly_only = None, use_genre = False):
+    def navigator(self, login = True, data = None, new_music = None, all_genres = None, print_list = True, uploaded_for = '360', sort_by = 'date', on_page = '40', sorting = 'desc', active_only = None, lossly_only = None, use_genre = False, search = False):
         sess = None 
-        search = False
         link_download = None
         
         if login:
             login_content, sess = self.login()
-        if not data:
+        if not data and not search:
             data, new_music, bs_object, cookies = c.home(sess = sess)
-        if not all_genres:
+        #if not all_genres and not search:
+        if not all_genres and not search:
             all_genres = self.genres(bs_object)
-        debug(all_genres = all_genres, debug = True)
+        else:
+            if not all_genres:
+                all_genres = self.genres()
+        #debug(all_genres = all_genres)
+        #self.pause()
         choice = ['green', 'cyan', 'magenta', 'red']
         debug(data = data)
         #from pprint import  pprint
         #pprint(data)
-        if not data:
+        if not data and not search:
             sys.exit(make_colors("No Data !", 'white', 'red', ['blink']))
-        if print_list:
+        if print_list and not search:
             if data:
+                debug(data = data)
+                #self.pause()
                 if use_genre:
-                    for i in  data:
-                        genres = []
-                        genre_list = data.get(i).get('genres')
-                        for genre in genre_list:
-                            genres.append(genre)
-                        debug(genres = genres)
-                        if len(str(i)) == 1:
-                            number = '0' + str(i)
-                        else:
-                            number = str(i)
-                        print(" " + make_colors(str(number) + ". " + data.get(i).get('title').encode('utf-8'), fore, back) + "[" +  make_colors(data.get(i).get('release'), 'white', 'blue') + "] [" + make_colors(data.get(i).get('duration'), 'black', 'green') + "] [" + make_colors(data.get(i).get('views'), 'white', 'magenta') + "] [" + make_colors("\\".join(genres)[:10] + " ...", 'black', 'white') + "]")
+                    for i in data:
+                        debug(data_get_i = data.get(i))
+                        if data.get(i):
+                            genres = []
+                            genre_list = data.get(i).get('genres')
+                            debug(genre_list = genre_list)
+                            if genre_list:
+                                for g in genre_list:
+                                    genres.append(genre_list.get(g).get('name'))
+                                debug(genres = genres)
+                            number = ''
+                            if len(str(i)) == 1:
+                                number = '0' + str(i)
+                            else:
+                                number = str(i)
+                            genre_str = ''
+                            debug(genres = genres)
+                            if genre_list:
+                                genre_str = "\\".join(genres)[:10] + " ..."
+                            title = data.get(i).get('title')
+                            debug(title = title)
+                            if title:
+                                title = title#.encode('utf-8')
+                            else:
+                                title = ''
+                            release = data.get(i).get('release')
+                            debug(release = release)
+                            if release:
+                                release = release.encode('utf-8')
+                            else:
+                                release = ''
+                            duration = data.get(i).get('duration')
+                            debug(duration = duration)
+                            if not duration:
+                                duration = ''
+                            views = data.get(i).get('views')
+                            debug(views = views)
+                            if not views:
+                                views = ''
+                            
+                            print(" " + make_colors(str(number) + ".", 'cyan') + " " + make_colors(title, 'yellow') + "[" +  make_colors(release, 'white', 'blue') + "] [" + make_colors(duration, 'black', 'green') + "] [" + make_colors(views, 'white', 'magenta') + "] [" + make_colors(genre_str, 'black', 'white') + "]" + " ")
+                            #self.pause()
                 else:
                     nc = 0
                     for i in data:
@@ -874,59 +1052,148 @@ class soundpark(object):
                                 number = str(x)
                             print(" " + make_colors(str(number) + ". " + datas.get(x).get('title').encode('utf-8'), fore, back) + "[" + make_colors("\\".join(genres)[:10] + " ...", 'black', 'white') + "]")
             print("\n")
+        else:
+            #  def search(self, query, sess = None, timeout = 5, max_try=30):
+            #debug(search = search, debug = True)
+            if search:
+                data = self.search(search, sess)
+                if print_list:
+                    nc = 0
+                    print("\n")
+                    for i in data:
+                        if len(str(i)) == 1:
+                            number = '0' + str(i)
+                        else:
+                            number = str(i)
+                        fore, back = self.set_colored(choice[nc])
+                        if nc == 3:
+                            nc = 0
+                        else:
+                            nc += 1
+                        genres = []
+                        genre_list = data.get(i).get('genres')
+                        debug(genre_list = genre_list)
+                        for genre in genre_list:
+                            genres.append(genre_list.get(genre).get('name'))
+                            debug(genres = genres)
+                        try:
+                            print(make_colors(str(number) + ". " + data.get(i).get('title').encode('utf-8'), fore, back) + "[" + make_colors("\\".join(genres)[:20] + " ...", 'black', 'white') + "]")
+                        except:
+                            sprint(make_colors(str(number) + ". " + data.get(i).get('title'), fore, back) + "[" + make_colors("\\".join(genres)[:20] + " ...", 'black', 'white') + "]")
+                    print("\n")
         q = self.print_nav()
+        debug(q = q)
         if q:
+            if not os.path.isdir(os.path.join(os.path.dirname(__file__), 'cover_downloads')):
+                os.makedirs(os.path.join(os.path.dirname(__file__), 'cover_downloads'))
+            else:
+                import shutil
+                shutil.rmtree(os.path.join(os.path.dirname(__file__), 'cover_downloads'), onerror = self.del_evenReadonly)
+                os.makedirs(os.path.join(os.path.dirname(__file__), 'cover_downloads'))
+            debug(q = str(q).strip())
+            #self.pause()
             if str(q).strip().isdigit():
+                torrent_file = None
                 d = None
-                for i in data:
-                    if data.get(i).get('data').get(int(str(q).strip())):
-                        d = data.get(i).get('data').get(int(str(q).strip()))
-                        if d:
-                            link = self.url + d.get('link')
-                            debug(link = link, debug = True)
-                            
-                            data_artist, data_playlist, data_video, link_download, magnet = self.details(link)
-                            debug(magnet = magnet, debug = True)
-                            debug(link_download = link_download, debug=True)
-                            if link_download:
-                                try:
-                                    from . import download
-                                except:
-                                    import download
-                                download.download(self.url + link_download, download_path="torrent_downloads", session = self.sess)
-                                #qd = raw_input("Download it ? [y/n] or just enter: ")
-                                #if qd and str(qd).strip() == 'y':
-                                #    download.download(self.url + link_download, download_path="torrent_downloads")
-                            break
-                    
-                if not d:
-                    print(make_colors("No Data Found !", "lightwhite", "lightred"))
-                    qr = raw_input(make_colors("Enter to Continue ! [e[x]it or [q]uit for exit]: ", "lightwhite", "blue"))
-                    if qr == 'x' or qr == 'y':
-                        sys.exit(make_colors("System Exit !", "lightwhite", "lightred"))
-                
+                if not search:
+                    if use_genre:
+                        link = self.url + data.get(int(str(q).strip())).get('link')
+                        debug(link = link)
+                        data_artist, data_playlist, data_video, link_download, magnet, info_torrents = self.details(link)
+                        debug(magnet = magnet)
+                        debug(link_download = link_download)
+                        if link_download:
+                            try:
+                                from . import download
+                            except:
+                                import download
+                            torrent_file = download.download(self.url + link_download, download_path="torrent_downloads", session = self.sess)
+                        cover_link = self.url + info_torrents.get('cover')
+                        self.show_image(cover_link, os.path.join(os.path.dirname(__file__), 'cover_downloads'))
+                    else:
+                        for i in data:
+                            if data.get(i).get('data').get(int(str(q).strip())):
+                                d = data.get(i).get('data').get(int(str(q).strip()))
+                                if d:
+                                    link = self.url + d.get('link')
+                                    debug(link = link)
+                                    
+                                    data_artist, data_playlist, data_video, link_download, magnet, info_torrents = self.details(link)
+                                    debug(magnet = magnet)
+                                    debug(link_download = link_download)
+                                    if link_download:
+                                        try:
+                                            from . import download
+                                        except:
+                                            import download
+                                        torrent_file = download.download(self.url + link_download, download_path="torrent_downloads", session = self.sess)
+                                        #qd = raw_input("Download it ? [y/n] or just enter: ")
+                                        #if qd and str(qd).strip() == 'y':
+                                        #    torrent_file = download.download(self.url + link_download, download_path="torrent_downloads")
+                                    break
+                        cover_link = self.url + info_torrents.get('cover')
+                        self.show_image(cover_link, os.path.join(os.path.dirname(__file__), 'cover_downloads'))
+                        if not d:
+                            print(make_colors("No Data Found !", "lightwhite", "lightred"))
+                            qr = raw_input(make_colors("Enter to Continue ! [e[x]it or [q]uit for exit]: ", "lightwhite", "blue"))
+                            if qr == 'x' or qr == 'y' or qr == 'q':
+                                sys.exit(make_colors("System Exit !", "lightwhite", "lightred"))
+                else:
+                    link = self.url + data.get(int(q)).get('link')
+                    debug(link = link, debug = True)
+                                
+                    data_artist, data_playlist, data_video, link_download, magnet, info_torrents = self.details(link)
+                    debug(magnet = magnet, debug = True)
+                    debug(link_download = link_download)
+                    if link_download:
+                        try:
+                            from . import download
+                        except:
+                            import download
+                            torrent_file = download.download(self.url + link_download, download_path="torrent_downloads", session = self.sess)
+                            #qd = raw_input("Download it ? [y/n] or just enter: ")
+                            #if qd and str(qd).strip() == 'y':
+                            #    torrent_file = download.download(self.url + link_download, download_path="torrent_downloads")
+                    cover_link = self.url + info_torrents.get('cover')
+                    self.show_image(cover_link, os.path.join(os.path.dirname(__file__), 'cover_downloads'))
+                qr = self.print_nav(2)
+                if qr == 'x' or qr == 'q':
+                    sys.exit(make_colors("System Exit !", "lightwhite", "lightred"))
+                elif qr == 'y':
+                    self.seedr(torrent_file)
             elif str(q).strip() == 'x' or str(q).strip() == 'q':
                 sys.exit(make_colors("Exit Bye .. bye ..", 'white', 'red'))
             elif str(q).strip() == 'r':
                 return self.navigator(False, data, new_music, all_genres, False)
             elif str(q).strip() == 'lg':
-                pass
+                if not all_genres:
+                    all_genres = self.genres()
+                all_genres_print = []
+                for i in all_genres:
+                    all_genres_print.append(all_genres.get(i).get('title'))
+                #makelist.makeList(all_genres_print, 4)
+                sprint(" / ".join(all_genres_print))
+                return self.navigator(False, data, new_music, all_genres, False, use_genre = use_genre, search = search)
             elif str(q).strip() == 'w':
                 if sys.platform == 'win32':
                     os.system('cls')
                 else:
                     os.system('clear')                
                 return self.navigator(False, data, new_music, all_genres, print_list, uploaded_for, sort_by, on_page, sorting, active_only, lossly_only)
-            elif str(q).strip() == 'c' or re.findall("c=(.*?) ", str(q).strip()):
+            elif re.findall("c=(.*?)$.*?", str(q).strip()) or re.findall("c=(.*?)$", str(q).strip()) or str(q).strip() == 'c':
                 #data_sort_by = ['date', 'title', 'pop', 'rating']
                 qc = ''
                 if str(q).strip() == 'c':
-                    qc = raw_input(make_colors("Category Name: ", 'white', 'blue'))
+                    qc = raw_input(make_colors("Genre Name: ", 'white', 'blue'))
                 else:
                     q = str(q).strip()
-                    qc = re.findall("c=(.*?) ", str(q).strip())[0].strip()
+                    if "=" in re.findall("c=(.*?) ", str(q).strip()):
+                        qc = re.findall("c=(.*?) ", str(q).strip())[0].strip()
+                    else:
+                        qc = re.findall("c=(.*?)$", str(q).strip())[0].strip()
                 
-                
+                debug(qc = qc)
+                #self.pause()
                 check_sort_rate = re.findall('.*?(sr.).*?', q)
                 check_sort_pop = re.findall('.*?(sp.).*?', q)
                 check_sort_name = re.findall('.*?(sn.).*?', q)
@@ -955,16 +1222,25 @@ class soundpark(object):
                 check_number_days = re.findall('.*?(\d+t).*?', q)
                 if check_number_days and check_number_days[-1] == 't' and check_number_days[:-1].isidigit():
                     uploaded_for = check_number_days[:-1]
-                
+                debug(qc = str(qc).strip())
+                #self.pause()
                 if qc:
+                    genre_found = ''
                     for i in all_genres:
-                        for g in all_genres.get(i).get('data'):
-                            #genre_str = re.sub("\n", "", all_genres.get(i).get('data').get(g).get('title').strip().lower()).strip()
-                            #genre_str = re.sub(' ', '-', genre_str)
-                            if re.sub("\n", "", all_genres.get(i).get('data').get(g).get('title').strip().lower()).strip() == str(qc).strip().lower():
-                                data = self.get_genre(self.url + all_genres.get(i).get('data').get(g).get('link'), uploaded_for, sort_by, on_page, sorting, active_only, lossly_only, sess)
-                                use_genre = True
-                                break
+                        if all_genres.get(i).get('title') == str(qc).strip():
+                            genre_found = all_genres.get(i)
+                            break
+                    debug(genre_found = genre_found)
+                    #self.pause()
+                    if genre_found:
+                        genre_url = self.url + genre_found.get('link')
+                        debug(genre_url = genre_url)
+                        #self.pause()
+                        data = self.get_genre(genre_url, uploaded_for, sort_by, on_page, sorting, active_only, lossly_only, sess, login = False)
+                        debug(data = data)
+                        use_genre = True
+                    #self.pause()
+                    #  def navigator(self, login = True, data = None, new_music = None, all_genres = None, print_list = True, uploaded_for = '360', sort_by = 'date', on_page = '40', sorting = 'desc', active_only = None, lossly_only = None, use_genre = False, search = False):
                     if use_genre:
                         return self.navigator(False, data, new_music, all_genres, True, uploaded_for, sort_by, on_page, sorting, active_only, lossly_only, True)
                     else:
@@ -973,12 +1249,56 @@ class soundpark(object):
                 else:
                     print(make_colors('No Genre Input', 'white', 'red', ['blink']))
                     return self.navigator(False, data, new_music, all_genres, False, use_genre = False)                    
+            else:
+                return self.navigator(login=False, print_list=True, search = q)
         return self.navigator(False)
+        
+    def usage(self, bar=None):
+        if bar:
+            self.bar = bar
+        parser = argparse.ArgumentParser(formatter_class = argparse.RawTextHelpFormatter)
+        parser.add_argument('SEARCH', help='Search for', action='store')
+        parser.add_argument('-U', '--username', help='Username login', action='store')
+        parser.add_argument('-P', '--password', help='Password login', action='store')
+        parser.add_argument('-su', '--set-upload', help='Set upload for time filter, default: 360 for 360 days', action='store', default=360)
+        parser.add_argument('-s', '--sort', help='Set sort by filter: "date", default: date', action='store')
+        parser.add_argument('-sp', '--sort-page', help='Show numbers item per page, default 40 items per page', default=40)
+        parser.add_argument('-st', '--sorting', help='Set shorting "desc" or "asc" of filter, default="desc"', default='desc')
+        parser.add_argument('-sa', '--set-active', help='Set show for active torrent only of filter', action='store_true')
+        parser.add_argument('-sl', '--set-lossy', help='Set download/show for lossy (ex: *.flac) of filter', action='store_true')
+        parser.add_argument('-sg', '--set-use-genre', help='Set use genre filters', action='store_true')
+        parser.add_argument('-g', '--genre', help='Change genre', action='store')
+        parser.add_argument('-v', '--download-video', help='Download video is exists')
+        parser.add_argument('-p', '--download-path', action='store', help='Download Path')
+        parser.add_argument('-t', '--timeout', action='store', help='Set timeout requests second', default=5, type=int)
+        parser.add_argument('--max-try', action='store', help='Set max trying or requests', default=30, type=int)
+        
+        if len(sys.argv) == 1:
+            #parser.print_help()
+            self.bar = progressbar.ProgressBar(max_value = self.max_value, prefix = self.prefix, variables = self.variables)
+            print(make_colors('use "-h" for help', 'lr', 'lw'))
+            self.navigator()
+        elif len(sys.argv) == 2 and not sys.argv[1] in ['-g', '--genre', '-v', '--download-video', '-p', '--download-path']:
+            self.bar = progressbar.ProgressBar(max_value = self.max_value, prefix = self.prefix, variables = self.variables)
+            #self.search(sys.argv[1])
+            self.navigator(True, None, None, None, True, search = sys.argv[1])
+        else:
+            self.bar = progressbar.ProgressBar(max_value = self.max_value, prefix = self.prefix, variables = self.variables)
+            args = parser.parse_args()
+            if args.SEARCH:
+                self.search(args.SEARCH, args.timeout, args.max_try)
+            else:
+                #  def navigator(self, login = True, data = None, new_music = None, all_genres = None, print_list = True, uploaded_for = '360', sort_by = 'date', on_page = '40', sorting = 'desc', active_only = None, lossly_only = None, use_genre = False)
+                if args.username or args.password:
+                    login = True
+                self.navigator(True, None, None, None, True, args.set_upload, args.sort, args.sort_page, args.sorting, args.set_active, args.set_lossy, args.set_use_genre)
+        
 if __name__ == '__main__':
-    c = soundpark(login = False)
+    c = soundpark(login = False, bar = True)
     #c.navigator()
-    content, sess = c.login()
-    c.details('https://sound-park.world/album/torrent-113233-fm-discography-1986-2020', sess)
+    #content, sess = c.login()
+    c.usage()
+    #c.details('https://sound-park.world/album/torrent-113233-fm-discography-1986-2020', sess)
     #c.details('https://sound-park.world/album/torrent-264829-inferno-requiem-shanhai-2019', sess)
     #c.details('https://sound-park.world/album/torrent-291318-motley-crue-goin-out-swinging-compilation-2cd-2020', sess)
     #c.details('https://sound-park.world/album/torrent-288082-iron-maiden-100-iron-maiden-2020', sess)

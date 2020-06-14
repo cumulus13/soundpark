@@ -85,7 +85,7 @@ def download(url, download_path = "downloads", saveas = None, proxies = {}, sess
     length = ''
     ext = ""
     debug(headers = headers)
-    raw_input("Enter to Continue")
+    #raw_input("Enter to Continue")
     content_disposition = headers.get('Content-Disposition')
     if content_disposition:
         saveas = re.findall('filename+=+"(.*?)"$', content_disposition)[0]
