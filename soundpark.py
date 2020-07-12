@@ -16,7 +16,6 @@ from configset import configset
 import cfscrape
 import clipboard
 import time
-#from clint.textui import progress
 import progressbar
 try:
     import makelist
@@ -30,7 +29,6 @@ else:
     from urlparse import urlparse
     from urllib import unquote, quote
 from getpass import getpass
-#import random
 import re
 from pprint import pprint
 import inspect
@@ -240,7 +238,7 @@ class soundpark(object):
                     self.progress(5, "[GET-Home]", "finish")
                     break
                 except:
-                    self.bar.show(t)
+                    self.bar.update(t)
                     t += 1
                     if t == 10:
                         error_get = True
@@ -526,7 +524,7 @@ class soundpark(object):
             info_add = []
             if description.find('strong'):
                 debug("description strong")
-                self.pause()
+                #self.pause()
                 all_tracks = re.split("\d+:\d.*?\.|\d+:\d{2}|\d+\.", data_desc)
                 debug(all_tracks = all_tracks)
                 all_tracks = list(filter(None, all_tracks))
@@ -560,10 +558,10 @@ class soundpark(object):
                     if ")" == i[0]:
                         info_add.append(i[1:])
                 debug(info_add = info_add)
-                self.pause()
+                #self.pause()
                 debug(all_titles_add = all_titles_add)
                 tracks.update({"CD1":all_titles_add})
-                self.pause()
+                #self.pause()
             elif description.find('span') and not all_cd:
                 debug("description span")
                 #data_desc = re.sub(" :", ": \n", data_desc)
@@ -641,7 +639,7 @@ class soundpark(object):
                             number = '00' + number
                         elif len(number) == 2 and len(this_tracks) > 99:
                             number = '0' + number                
-                        print("   " + make_colors(number, 'green') + ". " + make_colors(unquote(i.get('title').encode('utf-8')), 'lightcyan') + " [" + make_colors(i.get('duration'), 'white') + "]")
+                        print("   " + make_colors(number, 'green') + ". " + make_colors(sprint(i.get('title')), 'lightcyan') + " [" + make_colors(sprint(i.get('duration')), 'white') + "]")
             if info_add:
                 print(make_colors("\n".join(info_add), 'lm'))
                     
@@ -886,8 +884,11 @@ class soundpark(object):
             self.sess = sess
         data = {}
         url = self.url + '/search'
+        debug(url = url)
         query = query.replace(' ', '+')
+        debug(query = query)
         params = {'q': query,}
+        debug(params = params)
         nt = 1
         while 1:
             self.progress(max_try/2, "[Search]", "start", max_value=max_try)
@@ -910,7 +911,8 @@ class soundpark(object):
         div_search_result = b.find('div', {'id': 'searth_result',})
         debug(div_search_result = div_search_result)
         if div_search_result:
-            result = re.findall("results(.*?)albums", div_search_result.text)
+            result = re.findall("results(.*?)album", div_search_result.text)
+            debug(result = result)
             if result:
                 result = result[0].strip()
         debug(result = result)
@@ -959,14 +961,15 @@ class soundpark(object):
         if note == 2:
             note1 = make_colors("[e[x]it or [q]uit for exit]: ", "lightwhite", "red") + ", " + make_colors("Download it with seedr [y]: ", 'white', 'blue')
         else:
-            note1 = "Select number for details" + " (" + make_colors("[n]t = set for last numbers day", 'white', 'blue') + ", " + make_colors("desc|ast = sort by descending or ascending", 'white', 'magenta') + ", " + make_colors("sd = sort by date", 'white', 'green') + ", " + make_colors("sn = sort by name", 'black', 'cyan') + ", " + make_colors("sp = sort by popularity", 'red', 'white') + ", " + make_colors("sr = sort by ratting", 'black', 'white') + ", " + make_colors("sa = show for active torrent only", 'black', 'yellow') + ", " +  make_colors("sl = show lossly only (default lossly and mp3)", 'white', 'blue') + ", " + make_colors("c = show by genre or type 'c=[genre_name]'", 'white', 'blue') + ", " + make_colors("lg = show all genres", 'black', 'yellow') + ", " + make_colors("r = reset all setting", 'white', 'red') + ", " + make_colors("w = refresh", 'green') + ", " + make_colors("x|q = exit/quit", 'white', 'red') + " " + make_colors("all of set can type on one line", 'cyan') + ": "
+            note1 = "Select number for details" + " (" + make_colors("[n]t = set for last numbers day", 'white', 'blue') + ", " + make_colors("desc|ast = sort by descending or ascending", 'white', 'magenta') + ", " + make_colors("sd = sort by date", 'white', 'green') + ", " + make_colors("sn = sort by name", 'black', 'cyan') + ", " + make_colors("sp = sort by popularity", 'red', 'white') + ", " + make_colors("sr = sort by ratting", 'black', 'white') + ", " + make_colors("sa = show for active torrent only", 'black', 'yellow') + ", " +  make_colors("sl = show lossly only (default lossly and mp3)", 'white', 'blue') + ", " + make_colors("c = show by genre or type 'c=[genre_name]'", 'white', 'blue') + ", " + make_colors("lg = show all genres", 'black', 'yellow') + ", " + make_colors("r = reset all setting", 'white', 'red') + ", " + make_colors("w = refresh", 'green') + ", " + make_colors("h = goto Home", 'white', 'magenta') + ", " + make_colors("x|q = exit/quit", 'white', 'red') + " " + make_colors("or you can type anything for searching", 'lw', 'bl') + ", " + make_colors("all of set can type on one line", 'cyan') + ": "
         q = raw_input(note1)
         return q
     
     def navigator(self, login = True, data = None, new_music = None, all_genres = None, print_list = True, uploaded_for = '360', sort_by = 'date', on_page = '40', sorting = 'desc', active_only = None, lossly_only = None, use_genre = False, search = False):
         sess = None 
         link_download = None
-        
+        debug(data = data)
+        #self.pause()
         if login:
             login_content, sess = self.login()
         if not data and not search:
@@ -1057,6 +1060,7 @@ class soundpark(object):
             #debug(search = search, debug = True)
             if search:
                 data = self.search(search, sess)
+                debug(data = data)
                 if print_list:
                     nc = 0
                     print("\n")
@@ -1161,10 +1165,13 @@ class soundpark(object):
                     sys.exit(make_colors("System Exit !", "lightwhite", "lightred"))
                 elif qr == 'y':
                     self.seedr(torrent_file)
+                return self.navigator(False, data, all_genres = all_genres, use_genre = use_genre)
             elif str(q).strip() == 'x' or str(q).strip() == 'q':
                 sys.exit(make_colors("Exit Bye .. bye ..", 'white', 'red'))
             elif str(q).strip() == 'r':
                 return self.navigator(False, data, new_music, all_genres, False)
+            elif str(q).strip() == 'h':
+                return self.navigator(False)
             elif str(q).strip() == 'lg':
                 if not all_genres:
                     all_genres = self.genres()
@@ -1179,7 +1186,7 @@ class soundpark(object):
                     os.system('cls')
                 else:
                     os.system('clear')                
-                return self.navigator(False, data, new_music, all_genres, print_list, uploaded_for, sort_by, on_page, sorting, active_only, lossly_only)
+                return self.navigator(False, data, new_music, all_genres, print_list, uploaded_for, sort_by, on_page, sorting, active_only, lossly_only, use_genre, search)
             elif re.findall("c=(.*?)$.*?", str(q).strip()) or re.findall("c=(.*?)$", str(q).strip()) or str(q).strip() == 'c':
                 #data_sort_by = ['date', 'title', 'pop', 'rating']
                 qc = ''
