@@ -44,7 +44,7 @@ def proxy(proxy):
         return proxy
     return {}
 
-def download(url, download_path = "downloads", saveas = None, proxies = {}, session = None, add_ext = False, max_try = 10, overwrite = True):
+def download(url, download_path = "downloads", saveas = None, proxies = {}, session = None, add_ext = False, max_try = 10, overwrite = True, remove_str = None):
     debug(url = url)
     debug(saveas = saveas)
     debug(download_path = download_path)
@@ -91,7 +91,7 @@ def download(url, download_path = "downloads", saveas = None, proxies = {}, sess
         saveas = re.findall('filename+=+"(.*?)"$', content_disposition)[0]
         if download_path:
             saveas = os.path.join(download_path, saveas)
-    
+
     length = headers.get('content-length')
     if length:
         length = int(length)
@@ -115,7 +115,15 @@ def download(url, download_path = "downloads", saveas = None, proxies = {}, sess
                     os.remove(saveas)
                 except:
                     pass
-        
+    if remove_str:
+        if isinstance(remove_str, list) or isinstance(remove_str, tuple):
+            for i in remove_str:
+                saveas = re.sub(i, "", saveas)
+        elif isinstance(remove_str, str):
+            debug(saveas = saveas)
+            debug(remove_str = remove_str)
+            saveas = re.sub(remove_str, "", saveas)
+            debug(saveas = saveas)
     if length:
         with open(saveas, 'wb') as f:
             for ch in progress.bar(a.iter_content(chunk_size = 2391975), label, expected_size = (length/1024) + 1, ):
@@ -129,7 +137,7 @@ def download(url, download_path = "downloads", saveas = None, proxies = {}, sess
         with open(saveas, 'wb') as f:
             f.write(a.content)
     return saveas
-        
+
 def download_img(url, download_path = os.getcwd(), saveas = None, proxies = {}, add_ext = False, max_try = 10, overwrite = True):
     if proxies:
         proxies = {}
@@ -160,7 +168,7 @@ def download_img(url, download_path = os.getcwd(), saveas = None, proxies = {}, 
                 print(make_colors("Timeout Expected !", 'lightwhite', 'lightred', ['blink']))
                 progress_bar.show(10)
                 break
-    
+
     headers = a.headers
     length = ''
     ext = ""
@@ -171,7 +179,7 @@ def download_img(url, download_path = os.getcwd(), saveas = None, proxies = {}, 
             saveas_pre = re.split('attachment|;|filename|=',content_disposition)[-1]
             if download_path and saveas_pre:
                 saveas = os.path.join(download_path, saveas_pre)
-    
+
     length = headers.get('content-length')
     if length:
         length = int(length)
@@ -195,7 +203,7 @@ def download_img(url, download_path = os.getcwd(), saveas = None, proxies = {}, 
                     os.remove(saveas)
                 except:
                     pass
-        
+
     if length:
         with open(saveas, 'wb') as f:
             for ch in progress.bar(a.iter_content(chunk_size = 2391975), label, expected_size = (length/1024) + 1, ):
@@ -203,5 +211,5 @@ def download_img(url, download_path = os.getcwd(), saveas = None, proxies = {}, 
                     f.write(ch)
     else:
         print(make_colors("No Length data !", 'lightwhite', 'lightred', ['blink']))
-        
+
     return saveas

@@ -379,11 +379,11 @@ class soundpark(object):
     def set_colored(self, background):
         foreground = 'white'
         if 'green' in background:
-            foreground = 'black'
+            foreground = 'white'
         elif 'white' in background:
             foreground = 'red'
         elif 'cyan' in  background:
-            foreground = 'black'
+            foreground = 'white'
         
         return foreground, background
     
@@ -814,7 +814,11 @@ class soundpark(object):
                 style = re.findall("Style:(.*?)Site", all_text)
             if not style:
                 style = re.findall("Style:(.*?)Duration", all_text)
+            if not style:
+                style = re.findall("Style:(.*?)File", all_text)            
             debug(style = style)
+            if not style:
+                style = ["--"]
             #data.get(n).update({'style':style[0].strip()})
             label = re.findall("Label:(.*?)Duration", all_text)
             debug(label = label)
@@ -1032,28 +1036,34 @@ class soundpark(object):
                             debug(views = views)
                             if not views:
                                 views = ''
-                            
-                            print(" " + make_colors(str(number) + ".", 'cyan') + " " + make_colors(title, 'yellow') + "[" +  make_colors(release, 'white', 'blue') + "] [" + make_colors(duration, 'black', 'green') + "] [" + make_colors(views, 'white', 'magenta') + "] [" + make_colors(genre_str, 'black', 'white') + "]" + " ")
+                            try:
+                                print(" " + make_colors(str(number) + ".", 'cyan') + " " + make_colors(title, 'yellow') + "[" +  make_colors(release, 'white', 'blue') + "] [" + make_colors(duration, 'black', 'green') + "] [" + make_colors(views, 'white', 'magenta') + "] [" + make_colors(genre_str, 'black', 'white') + "]" + " ")
+                            except:
+                                sprint(" " + make_colors(str(number) + ".", 'cyan') + " " + make_colors(title, 'yellow') + "[" +  make_colors(release, 'white', 'blue') + "] [" + make_colors(duration, 'black', 'green') + "] [" + make_colors(views, 'white', 'magenta') + "] [" + make_colors(genre_str, 'black', 'white') + "]" + " ")
                             #self.pause()
                 else:
                     nc = 0
                     for i in data:
                         title_release = data.get(i).get('title_release')
-                        print(make_colors(title_release.encode('utf-8'), 'white', 'blue') + ": ")
+                        try:
+                            print(make_colors(title_release.encode('utf-8'), 'white', 'blue') + ": ")
+                        except:
+                            pass
                         datas = data.get(i).get('data')
-                        fore, back = self.set_colored(choice[nc])
-                        nc += 1
-                        for x in datas:
-                            genres = []
-                            genre_list = datas.get(x).get('genres')
-                            for genre in genre_list:
-                                genres.append(genre)
-                            debug(genres = genres)
-                            if len(str(x)) == 1:
-                                number = '0' + str(x)
-                            else:
-                                number = str(x)
-                            print(" " + make_colors(str(number) + ". " + datas.get(x).get('title').encode('utf-8'), fore, back) + "[" + make_colors("\\".join(genres)[:10] + " ...", 'black', 'white') + "]")
+                        if datas:
+                            fore, back = self.set_colored(choice[nc])
+                            nc += 1
+                            for x in datas:
+                                genres = []
+                                genre_list = datas.get(x).get('genres')
+                                for genre in genre_list:
+                                    genres.append(genre)
+                                debug(genres = genres)
+                                if len(str(x)) == 1:
+                                    number = '0' + str(x)
+                                else:
+                                    number = str(x)
+                                print(" " + make_colors(str(number) + ". " + datas.get(x).get('title').encode('utf-8'), fore, back) + "[" + make_colors("\\".join(genres)[:10] + " ...", 'black', 'white') + "]")
             print("\n")
         else:
             #  def search(self, query, sess = None, timeout = 5, max_try=30):
@@ -1111,7 +1121,7 @@ class soundpark(object):
                                 from . import download
                             except:
                                 import download
-                            torrent_file = download.download(self.url + link_download, download_path="torrent_downloads", session = self.sess)
+                            torrent_file = download.download(self.url + link_download, download_path="torrent_downloads", session = self.sess, remove_str = "\[Sound-Park.ru\] ")
                         cover_link = self.url + info_torrents.get('cover')
                         self.show_image(cover_link, os.path.join(os.path.dirname(__file__), 'cover_downloads'))
                     else:
@@ -1130,7 +1140,7 @@ class soundpark(object):
                                             from . import download
                                         except:
                                             import download
-                                        torrent_file = download.download(self.url + link_download, download_path="torrent_downloads", session = self.sess)
+                                        torrent_file = download.download(self.url + link_download, download_path="torrent_downloads", session = self.sess, remove_str = "\[Sound-Park.ru\] ")
                                         #qd = raw_input("Download it ? [y/n] or just enter: ")
                                         #if qd and str(qd).strip() == 'y':
                                         #    torrent_file = download.download(self.url + link_download, download_path="torrent_downloads")
@@ -1154,7 +1164,7 @@ class soundpark(object):
                             from . import download
                         except:
                             import download
-                            torrent_file = download.download(self.url + link_download, download_path="torrent_downloads", session = self.sess)
+                            torrent_file = download.download(self.url + link_download, download_path="torrent_downloads", session = self.sess, remove_str = "\[Sound-Park.ru\] ")
                             #qd = raw_input("Download it ? [y/n] or just enter: ")
                             #if qd and str(qd).strip() == 'y':
                             #    torrent_file = download.download(self.url + link_download, download_path="torrent_downloads")
