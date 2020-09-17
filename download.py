@@ -16,11 +16,13 @@ from clint.textui import progress
 from make_colors import make_colors
 #from zipfile import ZipFile
 from pydebugger.debug import debug
+
 import cfscrape
 #from mimetypes import guess_extension
 import ast
 import mimelist
 cf = cfscrape.create_scraper()
+from pause import pause
 
 def proxy(proxy):
     proxy_list = {}
@@ -173,6 +175,7 @@ def download_img(url, download_path = os.getcwd(), saveas = None, proxies = {}, 
     length = ''
     ext = ""
     debug(headers = headers)
+    
     content_disposition = headers.get('Content-Disposition')
     if content_disposition:
         if 'filename=' in content_disposition:
@@ -181,18 +184,29 @@ def download_img(url, download_path = os.getcwd(), saveas = None, proxies = {}, 
                 saveas = os.path.join(download_path, saveas_pre)
 
     length = headers.get('content-length')
+    if not length:
+        length = headers.get('Content-Length')
+    debug(length = length)
+    
     if length:
         length = int(length)
     ext = headers.get('Content-Type')
     debug(ext = ext)
     if ext:
-        ext = mimelist.get(ext)
+        ext = mimelist.get2(ext)
+        if ext:
+            ext = ext[1]
+    debug(ext = ext)
+    
     label = "downloading " + os.path.basename(saveas) + ": "
     if add_ext and ext:
+        saveas = saveas + "." + ext
+    if saveas and not os.path.splitext(saveas)[1]:
         saveas = saveas + "." + ext
     debug(add_ext = add_ext)
     debug(ext = ext)
     debug(saveas = saveas)
+    
     if not overwrite:
         if os.path.isfile(saveas):
             q = raw_input(make_colors("overwrite file %s ? [y/n]: ", 'lightred', 'lightwhite', ['blink']))
@@ -203,12 +217,16 @@ def download_img(url, download_path = os.getcwd(), saveas = None, proxies = {}, 
                     os.remove(saveas)
                 except:
                     pass
-
+    debug(length = length)
     if length:
         with open(saveas, 'wb') as f:
             for ch in progress.bar(a.iter_content(chunk_size = 2391975), label, expected_size = (length/1024) + 1, ):
+                debug(ch = ch)
                 if ch:
                     f.write(ch)
+        if not os.path.isfile(saveas):
+            with open(saveas, 'wb') as f:
+                f.write(a.content)
     else:
         print(make_colors("No Length data !", 'lightwhite', 'lightred', ['blink']))
 

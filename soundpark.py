@@ -7,7 +7,8 @@ from safeprint import print as sprint
 #  sys.stdout = io.TextIOWrapper(sys.stdout.detach(), encoding = 'utf-8')
 #  sys.stderr = io.TextIOWrapper(sys.stderr.detach(), encoding = 'utf-8')
 os.environ.update({'PYTHONIOENCODING':'UTF-8'})
-sys.excepthook = traceback.format_exc
+if sys.platform == 'win32':    
+    sys.excepthook = traceback.format_exc
 import argparse
 from bs4 import BeautifulSoup as bs
 from pydebugger.debug import debug
@@ -74,14 +75,15 @@ class soundpark(object):
             try:
                 from seedr2.seedr import seedr
             except:
-                traceback.format_exc(detach=False)
+                print(traceback.format_exc(detach=False))
+                print(sys.exc_info())
                 from seedr import seedr
-                    
+        print("1" * 100)
         st = seedr()
-        st.add(torrent)
-        cprocess = 'start cmd /c "seedr2 -s -sd"'
-        os.system(cprocess)
-
+        print("2" * 100)
+        st.add(torrent, detach = True)
+        print("3" * 100)
+        
     def del_evenReadonly(self, action, name, exc):
         import stat
         os.chmod(name, stat.S_IWRITE)
@@ -92,14 +94,21 @@ class soundpark(object):
             from . import download
         except:
             import download
-        download.download_img(url, cover_dir)
+        save = download.download_img(url, cover_dir)
+        print(make_colors("download cover to:", 'lc') + " " + make_colors(save, 'lr', 'ly'))
+        #try:
+            #import tkimage
+        #except:
+            #from . import tkimage
         try:
-            import tkimage
+            import pilview
         except:
-            from . import tkimage
-        from multiprocessing import Process
-        tx = Process(target=tkimage.main, args=(cover_dir, ))
-        tx.start()
+            from . import pilview
+        #from multiprocessing import Process
+        #tx = Process(target=tkimage.main, args=(cover_dir, ))
+        #tx = Process(target=pilview.App, args=(None, save, ))
+        #tx.start()
+        a = pilview.App(img = save)
         
     def progress(self, value, task, subtask, tcf='lw', tcg='bl', stcf = 'b', stcg = 'lg', tattr = [], stattr = [], max_value=None):
         task = make_colors(task, tcf, tcg, attrs=tattr)
@@ -379,11 +388,11 @@ class soundpark(object):
     def set_colored(self, background):
         foreground = 'white'
         if 'green' in background:
-            foreground = 'white'
+            foreground = 'black'
         elif 'white' in background:
             foreground = 'red'
         elif 'cyan' in  background:
-            foreground = 'white'
+            foreground = 'black'
         
         return foreground, background
     
@@ -965,11 +974,29 @@ class soundpark(object):
         if note == 2:
             note1 = make_colors("[e[x]it or [q]uit for exit]: ", "lightwhite", "red") + ", " + make_colors("Download it with seedr [y]: ", 'white', 'blue')
         else:
-            note1 = "Select number for details" + " (" + make_colors("[n]t = set for last numbers day", 'white', 'blue') + ", " + make_colors("desc|ast = sort by descending or ascending", 'white', 'magenta') + ", " + make_colors("sd = sort by date", 'white', 'green') + ", " + make_colors("sn = sort by name", 'black', 'cyan') + ", " + make_colors("sp = sort by popularity", 'red', 'white') + ", " + make_colors("sr = sort by ratting", 'black', 'white') + ", " + make_colors("sa = show for active torrent only", 'black', 'yellow') + ", " +  make_colors("sl = show lossly only (default lossly and mp3)", 'white', 'blue') + ", " + make_colors("c = show by genre or type 'c=[genre_name]'", 'white', 'blue') + ", " + make_colors("lg = show all genres", 'black', 'yellow') + ", " + make_colors("r = reset all setting", 'white', 'red') + ", " + make_colors("w = refresh", 'green') + ", " + make_colors("h = goto Home", 'white', 'magenta') + ", " + make_colors("x|q = exit/quit", 'white', 'red') + " " + make_colors("or you can type anything for searching", 'lw', 'bl') + ", " + make_colors("all of set can type on one line", 'cyan') + ": "
+            note1 = "Select number for details" + " (" +\
+                make_colors("[n]t = set for last numbers day", 'white', 'blue') + ", " +\
+                make_colors("[n]d = download torrent file of n", 'white', 'red') + ", " +\
+                make_colors("desc|ast = sort by descending or ascending", 'white', 'magenta') + ", " +\
+                make_colors("sd = sort by date", 'white', 'green') + ", " +\
+                make_colors("sn = sort by name", 'black', 'cyan') + ", " +\
+                make_colors("sp = sort by popularity", 'red', 'white') + ", " +\
+                make_colors("sr = sort by ratting", 'black', 'white') + ", " +\
+                make_colors("sa = show for active torrent only", 'black', 'yellow') + ", " +\
+                make_colors("sl = show lossly only (default lossly and mp3)", 'white', 'blue') + ", " +\
+                make_colors("c = show by genre or type 'c=[genre_name]'", 'white', 'blue') + ", " +\
+                make_colors("lg = show all genres", 'black', 'yellow') + ", " +\
+                make_colors("r = reset all setting", 'white', 'red') + ", " +\
+                make_colors("w = refresh", 'green') + ", " +\
+                make_colors("h = goto Home", 'white', 'magenta') + ", " +\
+                make_colors("x|q = exit/quit", 'white', 'red') + " " +\
+                make_colors("or you can type anything for searching", 'lw', 'bl') + ", " +\
+                make_colors("all of set can type on one line", 'cyan') +\
+                ": "
         q = raw_input(note1)
         return q
     
-    def navigator(self, login = True, data = None, new_music = None, all_genres = None, print_list = True, uploaded_for = '360', sort_by = 'date', on_page = '40', sorting = 'desc', active_only = None, lossly_only = None, use_genre = False, search = False):
+    def navigator(self, login = True, data = None, new_music = None, all_genres = None, print_list = True, uploaded_for = '360', sort_by = 'date', on_page = '40', sorting = 'desc', active_only = None, lossly_only = None, use_genre = False, search = False, q = None, direct_download_torrent = False, ask_direct_download_torrent = True):
         sess = None 
         link_download = None
         debug(data = data)
@@ -1095,7 +1122,8 @@ class soundpark(object):
                         except:
                             sprint(make_colors(str(number) + ". " + data.get(i).get('title'), fore, back) + "[" + make_colors("\\".join(genres)[:20] + " ...", 'black', 'white') + "]")
                     print("\n")
-        q = self.print_nav()
+        if not q:
+            q = self.print_nav()
         debug(q = q)
         if q:
             if not os.path.isdir(os.path.join(os.path.dirname(__file__), 'cover_downloads')):
@@ -1105,7 +1133,8 @@ class soundpark(object):
                 shutil.rmtree(os.path.join(os.path.dirname(__file__), 'cover_downloads'), onerror = self.del_evenReadonly)
                 os.makedirs(os.path.join(os.path.dirname(__file__), 'cover_downloads'))
             debug(q = str(q).strip())
-            #self.pause()
+            if q:
+                q = str(q).strip()
             if str(q).strip().isdigit():
                 torrent_file = None
                 d = None
@@ -1113,7 +1142,8 @@ class soundpark(object):
                     if use_genre:
                         link = self.url + data.get(int(str(q).strip())).get('link')
                         debug(link = link)
-                        data_artist, data_playlist, data_video, link_download, magnet, info_torrents = self.details(link)
+                        data_artist, data_playlist, data_video, link_download, magnet, info_torrents = self.details(link, print_list = print_list)
+                        print_list = True
                         debug(magnet = magnet)
                         debug(link_download = link_download)
                         if link_download:
@@ -1131,8 +1161,8 @@ class soundpark(object):
                                 if d:
                                     link = self.url + d.get('link')
                                     debug(link = link)
-                                    
-                                    data_artist, data_playlist, data_video, link_download, magnet, info_torrents = self.details(link)
+                                    data_artist, data_playlist, data_video, link_download, magnet, info_torrents = self.details(link, print_list = print_list)
+                                    print_list = True
                                     debug(magnet = magnet)
                                     debug(link_download = link_download)
                                     if link_download:
@@ -1170,19 +1200,25 @@ class soundpark(object):
                             #    torrent_file = download.download(self.url + link_download, download_path="torrent_downloads")
                     cover_link = self.url + info_torrents.get('cover')
                     self.show_image(cover_link, os.path.join(os.path.dirname(__file__), 'cover_downloads'))
-                qr = self.print_nav(2)
+                qr = ''
+                if not direct_download_torrent:
+                    if ask_direct_download_torrent:
+                        qr = self.print_nav(2)
+                else:
+                    qr = 'y'
                 if qr == 'x' or qr == 'q':
                     sys.exit(make_colors("System Exit !", "lightwhite", "lightred"))
                 elif qr == 'y':
+                    print("0" * 100)
                     self.seedr(torrent_file)
                 return self.navigator(False, data, all_genres = all_genres, use_genre = use_genre)
-            elif str(q).strip() == 'x' or str(q).strip() == 'q':
+            elif q == 'x' or q == 'q':
                 sys.exit(make_colors("Exit Bye .. bye ..", 'white', 'red'))
-            elif str(q).strip() == 'r':
+            elif q == 'r':
                 return self.navigator(False, data, new_music, all_genres, False)
-            elif str(q).strip() == 'h':
+            elif q == 'h':
                 return self.navigator(False)
-            elif str(q).strip() == 'lg':
+            elif q == 'lg':
                 if not all_genres:
                     all_genres = self.genres()
                 all_genres_print = []
@@ -1191,13 +1227,20 @@ class soundpark(object):
                 #makelist.makeList(all_genres_print, 4)
                 sprint(" / ".join(all_genres_print))
                 return self.navigator(False, data, new_music, all_genres, False, use_genre = use_genre, search = search)
-            elif str(q).strip() == 'w':
+            elif q == 'w':
                 if sys.platform == 'win32':
                     os.system('cls')
                 else:
                     os.system('clear')                
                 return self.navigator(False, data, new_music, all_genres, print_list, uploaded_for, sort_by, on_page, sorting, active_only, lossly_only, use_genre, search)
-            elif re.findall("c=(.*?)$.*?", str(q).strip()) or re.findall("c=(.*?)$", str(q).strip()) or str(q).strip() == 'c':
+            elif q[-1] == 'd':
+                if q[:-1]:
+                    number = q[:-1]
+                else:
+                    number = raw_input(make_colors("Select Number to download: ", 'lw', 'lr'))
+                debug(number = number)
+                return self.navigator(login, data, new_music, all_genres, False, uploaded_for, sort_by, on_page, sorting, active_only, lossly_only, use_genre, search, number, ask_direct_download_torrent = False)
+            elif re.findall("c=(.*?)$.*?", q) or re.findall("c=(.*?)$", q) or q == 'c':
                 #data_sort_by = ['date', 'title', 'pop', 'rating']
                 qc = ''
                 if str(q).strip() == 'c':
@@ -1289,6 +1332,7 @@ class soundpark(object):
         parser.add_argument('-p', '--download-path', action='store', help='Download Path')
         parser.add_argument('-t', '--timeout', action='store', help='Set timeout requests second', default=5, type=int)
         parser.add_argument('--max-try', action='store', help='Set max trying or requests', default=30, type=int)
+        parser.add_argument('--seedr', action = 'store_true', help = 'Direct download with seedr.cc')
         
         if len(sys.argv) == 1:
             #parser.print_help()
@@ -1298,9 +1342,9 @@ class soundpark(object):
         elif len(sys.argv) == 2 and not sys.argv[1] in ['-g', '--genre', '-v', '--download-video', '-p', '--download-path']:
             self.bar = progressbar.ProgressBar(max_value = self.max_value, prefix = self.prefix, variables = self.variables)
             #self.search(sys.argv[1])
-            self.navigator(True, None, None, None, True, search = sys.argv[1])
+            self.navigator(True, None, None, None, True, search = sys.argv[1], direct_download_torrent = args.seedr)
         else:
-            self.bar = progressbar.ProgressBar(max_value = self.max_value, prefix = self.prefix, variables = self.variables)
+            self.bar = progressbar.ProgressBar(max_value = self.max_value, prefix = self.prefix, variables = self.variables, direct_download_torrent = args.seedr)
             args = parser.parse_args()
             if args.SEARCH:
                 self.search(args.SEARCH, args.timeout, args.max_try)
@@ -1308,7 +1352,7 @@ class soundpark(object):
                 #  def navigator(self, login = True, data = None, new_music = None, all_genres = None, print_list = True, uploaded_for = '360', sort_by = 'date', on_page = '40', sorting = 'desc', active_only = None, lossly_only = None, use_genre = False)
                 if args.username or args.password:
                     login = True
-                self.navigator(True, None, None, None, True, args.set_upload, args.sort, args.sort_page, args.sorting, args.set_active, args.set_lossy, args.set_use_genre)
+                self.navigator(True, None, None, None, True, args.set_upload, args.sort, args.sort_page, args.sorting, args.set_active, args.set_lossy, args.set_use_genre, direct_download_torrent = args.seedr)
         
 if __name__ == '__main__':
     c = soundpark(login = False, bar = True)

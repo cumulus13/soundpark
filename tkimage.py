@@ -17,10 +17,13 @@ class Application(Frame):
 			title = image1
 		if not title:
 			title = "No Image"
-		if title:
-			master.iconbitmap(os.path.join(os.path.dirname(__file__), 'favicon.png'))
-		else:
-			master.iconbitmap(os.path.join(os.path.dirname(__file__), 'nofavicon.ico'))
+		try:
+			if title:
+				master.iconbitmap(os.path.join(os.path.dirname(__file__), 'favicon.png'))
+			else:
+				master.iconbitmap(os.path.join(os.path.dirname(__file__), 'nofavicon.ico'))
+		except:
+			pass
 		self.image = glob.glob(images_dir + "\*")
 		debug(self_image = self.image)
 		self.size = (0, 0)
@@ -73,7 +76,10 @@ class Application(Frame):
 		master.bind("q", self.quitX)
 
 	def showNoImage(self, master):
-		master.iconbitmap(os.path.join(os.path.dirname(__file__), 'nofavicon.ico'))
+		try:
+			master.iconbitmap(os.path.join(os.path.dirname(__file__), 'nofavicon.ico'))
+		except:
+			pass
 		self.label1 = Label(self, text="No Image", relief=SUNKEN, width=20, height=10, font='Consolas 28 bold')
 		self.label1.grid(row=0, column=0, padx=5, pady=5, rowspan=10)
 
